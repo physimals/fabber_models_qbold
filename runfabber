@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# this script will run fabber, as compiled, with whichever .fab file is specified by the number 
+# given in the input, eg "./runfabber 6" will apply "run6.fab"
+#
+# Matthew Cherukara, 13 October 2017
+
+# make sure the user has specified a .fab file number
+if [[ $# -eq 0 ]] ; then
+    echo 'You must specify which .fab file you want to use with a number'
+    echo 'e.g. "./runfabber01 6" will apply "run6.fab"'
+    exit 3
+else
+    frun="run$1.fab"
+fi
+
+# make sure that number actually exists
+if [[ -e ${frun} ]] ; then
+    echo "Running fabber with ${frun}"
+    ./fqbold -f ${frun}
+else
+    echo 'Invalid .fab file specified'
+    exit 3
+fi
