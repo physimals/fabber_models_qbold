@@ -34,71 +34,75 @@ protected:
     NEWMAT::ColumnVector m_taus;
     NEWMAT::ColumnVector m_tes;
 
-    // Bayesian inference parameters
-    double prec_R2p;
-    double prec_DBV;
-    double prec_CSF;
-    double prec_OEF;
-    double prec_DF;
-
     // Lookup starting indices of parameters
-    int OEF_index() const
+    int oef_index() const
     {
         return (m_infer_oef ? 1 : 0);
     }
     
-    int R2p_index() const
+    int r2p_index() const
     {
-        return OEF_index() + (m_infer_r2p ? 1 : 0);
+        return oef_index() + (m_infer_r2p ? 1 : 0);
     }
 
-    int DBV_index() const
+    int dbv_index() const
     {
-        return R2p_index() + (m_infer_dbv ? 1 : 0);
+        return r2p_index() + (m_infer_dbv ? 1 : 0);
     }
 
-    int R2t_index() const
+    int r2t_index() const
     {
-        return DBV_index() + (m_infer_r2t ? 1 : 0);
+        return dbv_index() + (m_infer_r2t ? 1 : 0);
     }
 
-    int S0_index() const
+    int sig0_index() const
     {
-        return R2t_index() + (m_infer_s0 ? 1 : 0);
+        return r2t_index() + (m_infer_sig0 ? 1 : 0);
     }
 
-    int Hct_index() const
+    int hct_index() const
     {
-        return S0_index() + (m_infer_hct ? 1 : 0);
+        return sig0_index() + (m_infer_hct ? 1 : 0);
     }
 
-    int R2e_index() const
+    int r2e_index() const
     {
-        return Hct_index() + (m_infer_r2e ? 1 : 0);
+        return hct_index() + (m_infer_r2e ? 1 : 0);
     }
 
-    int dF_index() const
+    int df_index() const
     {
-        return R2e_index() + (m_infer_df ? 1 : 0);
+        return r2e_index() + (m_infer_df ? 1 : 0);
     }
 
     int lam_index() const
     {
-        return dF_index() + (m_infer_lam ? 1 : 0);
+        return df_index() + (m_infer_lam ? 1 : 0);
     }
+
+    // Default parameter values
+    double m_dbv;
+    double m_r2t;
+    double m_sig0;
+    double m_hct;
+    double m_r2e;
+    double m_df;
+    double m_lam;
+    double m_b0;
+    double m_tc_factor;
 
     // Which parameters will we infer on
     bool m_infer_oef;
     bool m_infer_r2p;
     bool m_infer_dbv;
     bool m_infer_r2t;
-    bool m_infer_s0;
+    bool m_infer_sig0;
     bool m_infer_hct;
     bool m_infer_r2e;
     bool m_infer_df;
     bool m_infer_lam;
 
-    // Bunch of random booleans for choosing exactly which model we want to run
+    // Model options defining what signal contributions are included in the moodel
     bool m_motion_narr;
     bool m_inc_intra;
     bool m_inc_csf;

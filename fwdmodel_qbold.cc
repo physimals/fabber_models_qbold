@@ -20,6 +20,15 @@
 using namespace std;
 using namespace NEWMAT;
 
+// Complex number i
+const complex<double> I(0, 1);
+
+// Nuclear gyromagnetic ratio of H (10^6 rad s^-1 T^-1)
+const double GAMMA = 267.522;
+
+// Susceptibility difference between deoxy and oxy blood
+const double D_CHI0 = 0.264;
+
 FactoryRegistration<FwdModelFactory, R2primeFwdModel>
     R2primeFwdModel::registration("qboldR2p");
 
@@ -34,22 +43,32 @@ string R2primeFwdModel::GetDescription() const
 }
 
 static OptionSpec OPTIONS[] = {
-    { "inferOEF", OPT_BOOL, "", OPT_NONREQ, "" },
-    { "inferR2p", OPT_BOOL, "", OPT_NONREQ, "" },
-    { "inferDBV", OPT_BOOL, "", OPT_NONREQ, "" },
-    { "inferR2t", OPT_BOOL, "", OPT_NONREQ, "" },
-    { "inferS0", OPT_BOOL, "", OPT_NONREQ, "" },
-    { "inferHct", OPT_BOOL, "", OPT_NONREQ, "" },
-    { "inferR2e", OPT_BOOL, "", OPT_NONREQ, "" },
-    { "inferdF", OPT_BOOL, "", OPT_NONREQ, "" },
-    { "inferlam", OPT_BOOL, "", OPT_NONREQ, "" },
-    { "include_intra", OPT_BOOL, "", OPT_NONREQ, "" },
-    { "include_csf", OPT_BOOL, "", OPT_NONREQ, "" },
-    { "m_ignore_t1", OPT_BOOL, "", OPT_NONREQ, "" },
-    { "motional_narrowing", OPT_BOOL, "", OPT_NONREQ, "" },
     { "tau<n>", OPT_FLOAT, "", OPT_REQ, "" },
-    { "TR", OPT_FLOAT, "", OPT_REQ, "3.0" },
-    { "TI", OPT_FLOAT, "", OPT_REQ, "0.0" },
+    { "te", OPT_FLOAT, "Single TE value", OPT_NONREQ, "" },
+    { "te<n>", OPT_FLOAT, "Sequence of TE values, alternative to --te", OPT_NONREQ, "" },
+    { "tr", OPT_FLOAT, "TR value", OPT_REQ, "3.0" },
+    { "ti", OPT_FLOAT, "TI value", OPT_REQ, "0.0" },
+    { "inferoef", OPT_BOOL, "Infer oxygen extraction fraction", OPT_NONREQ, "" },
+    { "inferr2p", OPT_BOOL, "Infer OEF-related R2 rate rather than OEF", OPT_NONREQ, "" },
+    { "inferdbv", OPT_BOOL, "Infer deoxygenated blood volume", OPT_NONREQ, "" },
+    { "inferr2t", OPT_BOOL, "Infer T2 relaxation rate of tissue", OPT_NONREQ, "" },
+    { "infersig0", OPT_BOOL, "Infer baseline signal", OPT_NONREQ, "" },
+    { "inferhct", OPT_BOOL, "Infer heamatocrit value", OPT_NONREQ, "" },
+    { "inferr2e", OPT_BOOL, "Infer T2 relaxation rate of CSF", OPT_NONREQ, "" },
+    { "inferdf", OPT_BOOL, "Infer CSF frequency shift df", OPT_NONREQ, "" },
+    { "inferlam", OPT_BOOL, "Infer CSF fractional volume", OPT_NONREQ, "" },
+    { "incintra", OPT_BOOL, "Include intravascular signal", OPT_NONREQ, "" },
+    { "inccsf", OPT_BOOL, "Include CSF signal", OPT_NONREQ, "" },
+    { "ignore-t1", OPT_BOOL, "", OPT_NONREQ, "" },
+    { "motion-narrowing", OPT_BOOL, "", OPT_NONREQ, "" },
+    { "dbv", OPT_FLOAT, "Default deoxygenated blood volume fraction", OPT_NONREQ, "0.03" },
+    { "r2t", OPT_FLOAT, "Default T2 relaxation rate of tissue (s^-1)", OPT_NONREQ, "11.5" },
+    { "sig0", OPT_FLOAT, "Default signal offset", OPT_NONREQ, "500" },
+    { "r2e", OPT_FLOAT, "Default T2 relaxation rate of CSF (s^-1)", OPT_NONREQ, "4.0" },
+    { "hct", OPT_FLOAT, "Default haematocrit", OPT_NONREQ, "0.4" },
+    { "df", OPT_FLOAT, "Default CSF frequency shift df", OPT_NONREQ, "5.0" },
+    { "lam", OPT_FLOAT, "Default CSF fractional volume (if including CSF component)", OPT_NONREQ, "0.05" },
+    { "b0", OPT_FLOAT, "Field strength", OPT_NONREQ, "3.0" },
     { "" },
 };
 
@@ -75,58 +94,65 @@ string R2primeFwdModel::ModelVersion() const
 
 void R2primeFwdModel::Initialize(FabberRunData &rundata)
 {
-    m_infer_oef = rundata.ReadBool("inferOEF");
-    m_infer_r2p = rundata.ReadBool("inferR2p");
-    m_infer_dbv = rundata.ReadBool("inferDBV");
-    m_infer_r2t = rundata.ReadBool("inferR2t");
-    m_infer_s0  = rundata.ReadBool("inferS0");
-    m_infer_hct = rundata.ReadBool("inferHct");
-    m_infer_r2e = rundata.ReadBool("inferR2e");
-    m_infer_df  = rundata.ReadBool("inferdF");
-    m_infer_lam = rundata.ReadBool("inferlam");
+    // Default parameter values. These are used as the prior mean
+    // when inferring the parameter, or as the fixed value if not
+    m_dbv = rundata.GetDoubleDefault("dbv", 0.03);
+    m_r2t = rundata.GetDoubleDefault("r2t", 11.5);
+    m_sig0 = rundata.GetDoubleDefault("sig0", 500);
+    m_r2e = rundata.GetDoubleDefault("r2e", 4.0);
+    m_hct = rundata.GetDoubleDefault("hct", 0.4);
+    m_df = rundata.GetDoubleDefault("df", 5.0);
+    m_lam = rundata.GetDoubleDefault("lam", 0.05);
+    m_b0 = rundata.GetDoubleDefault("b0", 3.0);
+    m_tc_factor = rundata.GetDoubleDefault("tc-factor", 1.5);
+    
+    // Inference flags
+    m_infer_oef = rundata.GetBool("inferoef");
+    m_infer_r2p = rundata.GetBool("inferr2p");
+    m_infer_dbv = rundata.GetBool("inferdbv");
+    m_infer_r2t = rundata.GetBool("inferr2t");
+    m_infer_sig0  = rundata.GetBool("infersig0");
+    m_infer_hct = rundata.GetBool("inferhct");
+    m_infer_r2e = rundata.GetBool("inferr2e");
+    m_infer_df  = rundata.GetBool("inferdf");
+    m_infer_lam = rundata.GetBool("inferlam");
 
-    m_inc_intra = rundata.ReadBool("include_intra");
-    m_inc_csf = rundata.ReadBool("include_csf");
-    m_ignore_t1 = rundata.ReadBool("m_ignore_t1");
-
-    m_motion_narr = rundata.ReadBool("motional_narrowing");
-
-    // since we can't do both, OEF will take precidence over R2p
-    if (m_infer_oef)
+    if (m_infer_oef && m_infer_r2p) 
     {
-        m_infer_r2p = false;
+        throw FabberRunDataError("Can't infer both OEF and R2p");
+    }
+    else if (!m_infer_oef && !m_infer_r2p)
+    {
+        throw FabberRunDataError("Must infer either OEF or R2p");
     }
 
-    if (m_motion_narr)
-    {
-        m_inc_intra = true;
-    }
+    // Model options and inclusions
+    m_inc_intra = rundata.GetBool("incintra");
+    m_inc_csf = rundata.GetBool("inccsf");
+    m_ignore_t1 = rundata.GetBool("ignore-t1");
+    m_motion_narr = rundata.GetBool("motion-narrowing");
 
-    if (m_infer_lam || m_infer_df )
-    {
-        m_inc_csf = true;
-    }
+    // Motion narrowing implies an intravascular component
+    m_inc_intra = m_inc_intra || m_motion_narr;
 
-    // temporary holders for input values
-    string tau_temp;
-    string TE_temp; 
+    // Inferring any CSF parameters implies a CSF component
+    m_inc_csf = m_inc_csf || m_infer_lam || m_infer_df;
 
-    // allow for manual entry of prior precisions
-    prec_R2p = rundata.GetDoubleDefault("precR2p", 1e-3);
-    prec_DBV = rundata.GetDoubleDefault("precDBV", 1e-1);
-    prec_CSF = rundata.GetDoubleDefault("precCSF", 1e-1);
-    prec_OEF = rundata.GetDoubleDefault("precOEF", 1e-1);
-    prec_DF  = rundata.GetDoubleDefault("precD", 1e-4);
+    // If not including a CSF component, set fractional CSF volume to zero
+    if (!m_inc_csf) m_lam = 0.0;
 
-    // First read tau values, since these will always be specified
+    // First, read tau values, these will always be specified
     vector<double> tausv = rundata.GetDoubleList("tau");
     m_taus.ReSize(tausv.size());
     for (unsigned int i=0; i<tausv.size(); i++) m_taus(i+1) = tausv[i];
 
     // Then read TE values. There might be a sequence or just one
-    vector<double> tes = rundata.GetDoubleList("TE");
+    vector<double> tes = rundata.GetDoubleList("te");
     m_tes.ReSize(tausv.size());
-    if (tes.size() == 1) m_tes = tes[0];
+    if (tes.size() == 1) 
+    {
+        m_tes = tes[0];
+    }
     else
     {
         for (unsigned int i=0; i<tes.size(); i++)
@@ -135,9 +161,9 @@ void R2primeFwdModel::Initialize(FabberRunData &rundata)
         }
     }
 
-    // read TR and TI
-    m_tr = rundata.GetDoubleDefault("TR", 3.0);
-    m_ti = rundata.GetDoubleDefault("TI", 0.0);
+    // Read TR and TI
+    m_tr = rundata.GetDoubleDefault("tr", 3.0);
+    m_ti = rundata.GetDoubleDefault("ti", 0.0);
 
     // add information to the log
     LOG << "Inference using development model" << endl;
@@ -177,9 +203,9 @@ void R2primeFwdModel::Initialize(FabberRunData &rundata)
     {
         LOG << "Inferring on R2/T2 of tissue " << endl;
     }
-    if (m_infer_s0)
+    if (m_infer_sig0)
     {
-        LOG << "Inferring on scaling parameter S0 " << endl;
+        LOG << "Inferring on scaling parameter sig0 " << endl;
     }
     if (m_infer_hct)
     {
@@ -204,90 +230,110 @@ void R2primeFwdModel::GetParameterDefaults(std::vector<Parameter> &params) const
     params.clear();
 
     int p=0;
-    if (m_infer_oef) params.push_back(Parameter(p++, "OEF", DistParams(0.4, 10), DistParams(0.4, 10), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
-    if (m_infer_r2p) params.push_back(Parameter(p++, "R2p", DistParams(4.0, 1e3), DistParams(4.0, 1e2), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
-    if (m_infer_dbv) params.push_back(Parameter(p++, "DBV", DistParams(0.03, 10), DistParams(0.03, 10), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
-    if (m_infer_r2t) params.push_back(Parameter(p++, "R2t", DistParams(1/0.087, 1e2), DistParams(1/0.087, 1e2), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
-    if (m_infer_s0) params.push_back(Parameter(p++, "S0", DistParams(500.0, 1e6), DistParams(500.0, 100), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
-    if (m_infer_hct) params.push_back(Parameter(p++, "Hct", DistParams(0.40, 1e-3), DistParams(0.4, 1e-3), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
-    if (m_infer_r2e) params.push_back(Parameter(p++, "R2e", DistParams(0.5, 1e2), DistParams(0.5, 1e2), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
-    if (m_infer_df) params.push_back(Parameter(p++, "dF", DistParams(5.0, 1e4), DistParams(5.0, 100), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
-    if (m_infer_lam) params.push_back(Parameter(p++, "VC", DistParams(0.05, 10), DistParams(0.05, 10), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
+    if (m_infer_oef) params.push_back(Parameter(p++, "oef", DistParams(0.4, 10), DistParams(0.4, 10), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
+    if (m_infer_r2p) params.push_back(Parameter(p++, "r2p", DistParams(4.0, 1e3), DistParams(4.0, 1e2), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
+    if (m_infer_dbv) params.push_back(Parameter(p++, "dbv", DistParams(m_dbv, 10), DistParams(m_dbv, 10), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
+    if (m_infer_r2t) params.push_back(Parameter(p++, "r2t", DistParams(m_r2t, 1e2), DistParams(m_r2t, 1e2), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
+    if (m_infer_sig0) params.push_back(Parameter(p++, "sig0", DistParams(m_sig0, 1e6), DistParams(m_sig0, 100), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
+    if (m_infer_hct) params.push_back(Parameter(p++, "hct", DistParams(m_hct, 1e-3), DistParams(m_hct, 1e-3), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
+    if (m_infer_r2e) params.push_back(Parameter(p++, "r2e", DistParams(m_r2e, 1e2), DistParams(m_r2e, 1e2), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
+    if (m_infer_df) params.push_back(Parameter(p++, "df", DistParams(m_df, 1e4), DistParams(m_df, 100), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
+    if (m_infer_lam) params.push_back(Parameter(p++, "lam", DistParams(m_lam, 10), DistParams(m_lam, 10), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
 }
 
+/**
+ * Evaluate the quantitative BOLD model
+ * 
+ * Seems to largely follow He and Yablonskiy 2007: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3971521/
+ * 
+ */
 void R2primeFwdModel::Evaluate(const ColumnVector &params, ColumnVector &result) const
 {
     // Check we have been given the right number of parameters
     assert(params.Nrows() == NumParams());
     result.ReSize(data.Nrows());
 
-    // Calculated parameters
-    double Ss;  // static dephasing signal (will be used to make St and Se)
-    double St;  // tissue signal
-    double Sb;  // blood signal
-    double Se;  // extracellular signal
-    complex<double> Sec; // complex version of the extracellular signal (may be unnecessary)
-    complex<double> Sbc; // complex version of the blood signal (for powder model)
-    complex<double> i(0,1);
+    // Default values for parameters - values are overridden if the parameter is inferred
+    double dbv = m_dbv;
+    double r2t = m_r2t;
+    double sig0 = m_sig0;
+    double hct = m_hct;
+    double r2e = m_r2e;
+    double df = m_df;
+    double lam = m_lam;
 
-    // Derived parameters
-    double dw;          // characteristic time (protons in water)
-    double tc;
-    double lam0;        // apparent lambda (opposite way round from literature!)
-    double mt;
-    double me;
-    double mb;
+    // Assign values to parameters which are being inferred
 
-    // Default values for parameters - some of these may be inferred
-    double OEF = 0.3;
-    double R2p = 2.5;
-    double DBV = 0.03;
-    double R2t = 11.5;
-    double S0 = 265.0;
-    double Hct = 0.40;
-    double R2e = 4.0;
-    double dF = 5.00;
-    double lam = 0.0;
-    double CBV;
+    // OEF and R2p are equivalent ways to describe the effect of
+    // oxygen extraction on the T2 relaxation rate.
+    //
+    // Relationship below is based on Eq 2 in He and Yablonskiy 2007
+    //
+    // dw = gamma * 4/3 * pi * delta_chi0 * hct * oef * B0
+    // r2p = dbv * dw
 
-    // Assign values to parameters
+    double oef;         // If not inferred, derived from R2P
+    double r2p;         // If not inferred, derived from OEF
+    double dw;          // 1/tc in He and Yablonskiy 2007
+    
+    // Conversion factor from OEF to dw
+    double oef_dw_factor = GAMMA * 4/3 * M_PI * D_CHI0 * hct * m_b0;
+
+    if (m_infer_oef)
+    {
+        oef = (params(oef_index()));
+        dw = oef_dw_factor*oef;
+        r2p = dw*dbv;
+    }
+    else
+    {
+        r2p = (params(r2p_index()));
+        if (r2p < 0.01)
+        {
+            r2p = 0.01;
+        }
+
+        dw = r2p / dbv;
+        oef = dw / oef_dw_factor;
+    }
+
     if (m_infer_dbv)
     {
-        DBV = (params(DBV_index()));
-        // this bit makes sure the value for DBV isn't ridiculous
-        if (DBV < 0.0001)
+        dbv = (params(dbv_index()));
+        // this bit makes sure the value for dbv isn't ridiculous
+        if (dbv < 0.0001)
         {
-            DBV = 0.0001;
+            dbv = 0.0001;
         }
-        else if (DBV > 0.5)
+        else if (dbv > 0.5)
         {
-            DBV = 0.5;
+            dbv = 0.5;
         }
     }
     
     if (m_infer_r2t)
     {
-        R2t = (params(R2t_index()));
+        r2t = (params(r2t_index()));
     }
     
-    if (m_infer_s0)
+    if (m_infer_sig0)
     {
-        S0 = (params(S0_index()));
+        sig0 = (params(sig0_index()));
     }
     
     if (m_infer_hct)
     {
-        Hct = (params(Hct_index()));
+        hct = (params(hct_index()));
     }
     
     if (m_infer_r2e)
     {
-        R2e = (params(R2e_index()));
+        r2e = (params(r2e_index()));
     }
     
     if (m_infer_df)
     {
-        dF = (params(dF_index()));
+        df = (params(df_index()));
     }
     
     if (m_infer_lam)
@@ -295,57 +341,54 @@ void R2primeFwdModel::Evaluate(const ColumnVector &params, ColumnVector &result)
         lam = (params(lam_index()));
     }
 
-    // This one is a little bit different
-    if (m_infer_oef)
-    {
-        OEF = (params(OEF_index()));
-        dw = 887.4082*Hct*OEF;
-        R2p = dw*DBV;
-    }
-    else if (m_infer_r2p)
-    {
-        R2p = (params(R2p_index()));
-        if (R2p < 0.01)
-        {
-            R2p = 0.01;
-        }
+    // Characteristic time. Note that He and Yablonskiy 2007 define tc = 1/dw and
+    // use regimes separated by 1.5tc - hence we default to a TC factor of 1.5.
+    // Matt Cherukara has work demonstrating that 1.76tc is better, when this is 
+    // published we will probably move the default factor to 1.76
+    double tc = m_tc_factor/dw;
 
-        OEF = R2p/(887.4082*DBV*Hct);
-        dw = 887.4082*Hct*OEF;
-    }
+    // Cerebral blood volume fraction, calculated below
+    double CBV;
 
-    // Calculate tc and threshold it if necessary
-    tc = 1.76/dw;
+    // Apparent lambda (CSF volume fraction - opposite way round from literature!)
+    double lam0;
 
-    // Evaluate blood relaxation rates (for linear model)
-    double R2b  = ( 4.5 + (16.4*Hct)) + ( ((165.2*Hct) + 55.7)*pow(OEF,2.0) );
-    double R2bp = (10.2 - ( 1.5*Hct)) + ( ((136.9*Hct) - 13.9)*pow(OEF,2.0) );
-    
     // Simulated data doesn't have any T1 contrast
     if (m_ignore_t1)
     {
         lam0 = lam;
-        CBV = DBV;
+        CBV = dbv;
     }
     else
     {
-        // Here are some more constants we will need
+        // This mostly follows He and Yablonskiy 2007 eqns 14-17
+
+        // Here are some more constants we will need. Note they are
+        // not the same as He and Yablonskiy!
+        //
+        // T1 times
         double T1t = 1.20;
         double T1e = 3.87;
         double T1b = 1.58;
 
+        // Spin densities
         double nt = 0.723;
         double ne = 1.000;
         double nb = 0.775;
 
-        // Calculate magnetizations
-        mt = 1.0 - ( ( 2.0 - exp(-(m_tr-m_ti)/T1t) ) * exp(-m_ti/T1t) );
-        mb = 1.0 - ( ( 2.0 - exp(-(m_tr-m_ti)/T1b) ) * exp(-m_ti/T1b) );
-        me = 1.0 - ( ( 2.0 - exp(-(m_tr-m_ti)/T1e) ) * exp(-m_ti/T1e) );
+        // Calculate magnetizations in tissue, blood and extracellular space
+        // Related to Eq 16 but not identical
+        double mt = 1.0 - ( ( 2.0 - exp(-(m_tr-m_ti)/T1t) ) * exp(-m_ti/T1t) );
+        double mb = 1.0 - ( ( 2.0 - exp(-(m_tr-m_ti)/T1b) ) * exp(-m_ti/T1b) );
+        double me = 1.0 - ( ( 2.0 - exp(-(m_tr-m_ti)/T1e) ) * exp(-m_ti/T1e) );
 
         // Calculate tissue compartment weightings
+
+        // Extracellular (CSF/ISF) (Eq 15)
         lam0 = (ne*me*lam) / ( (nt*mt*(1-lam)) + (ne*me*lam) );
-        CBV = nb*mb*(1-lam0)*DBV;
+
+        // Intravascular (Eq 17)
+        CBV = nb*mb*(1-lam0)*dbv;
     }
     
     // loop through taus
@@ -353,90 +396,93 @@ void R2primeFwdModel::Evaluate(const ColumnVector &params, ColumnVector &result)
     for (int ii = 1; ii <= m_taus.Nrows(); ii++)
     {
         double tau = m_taus(ii);
-        double TE = m_tes(ii);
+        double te = m_tes(ii);
 
-        // Calculate tissue signal
+        // Static dephasing signal (will be used to make St and Se)
+        double Ss;
+
+        // Calculate tissue signal. This is always included
         if (tau < -tc)
         {
-            Ss = exp(DBV + (R2p*tau));          // SDR model
+            Ss = exp(dbv + (r2p*tau));          // SDR model
         }
         else if (tau > tc)
         {
-            Ss = exp(DBV - (R2p*tau));          // SDR model
+            Ss = exp(dbv - (r2p*tau));          // SDR model
         }
         else
         {
-            Ss = exp(-0.3*pow(R2p*tau,2.0)/DBV);          // SDR model
+            Ss = exp(-0.3*pow(r2p*tau,2.0)/dbv);          // SDR model
         }
 
-        // Add T2 effect to tissue compartment
-        St = Ss*exp(-R2t*TE);
+        // Add T2 effect to tissue compartment to get tissue signal
+        double St = Ss*exp(-r2t*te);
 
-        // Calculate intravascular signal
+        // Calculate intravascular signal if this is included
+        double Sb = 0.0;
         if (m_motion_narr)
         {
             double td   = 0.0045067;       // (based on rc=2.6 um and D=1.5 um^2 / ms)
             double gm   = 2.67513e8;
-            double dChi = ((0.27*OEF) + 0.14)*1e-6;
-            double G0   = (4/45)*Hct*(1-Hct)*pow((dChi*3.0),2.0);
+            double dChi = ((0.27*oef) + 0.14)*1e-6;
+            double G0   = (4/45)*hct*(1-hct)*pow((dChi*m_b0),2.0);
             double kk   = 0.5*pow(gm,2.0)*G0*pow(td,2.0);
-            R2b = 5.291;    // fixed value (Berman, 2017) 
+            double R2b = 5.291;    // fixed value (Berman, 2017) 
 
             // motion narrowing model
-            Sb = exp(-kk* ( (TE/td) + pow((0.25 + (TE/td)),0.5) + 1.5 - 
-                            (2*pow((0.25 + (pow((TE+tau),2.0)/td) ),0.5)) - 
-                            (2*pow((0.25 + (pow((TE-tau),2.0)/td) ),0.5)) ) );
+            Sb = exp(-kk* ( (te/td) + pow((0.25 + (te/td)),0.5) + 1.5 - 
+                            (2*pow((0.25 + (pow((te+tau),2.0)/td) ),0.5)) - 
+                            (2*pow((0.25 + (pow((te-tau),2.0)/td) ),0.5)) ) );
 
             // T2 effect 
-            Sb *= exp(-R2b*TE); 
-
+            Sb *= exp(-R2b*te); 
         }
         else if (m_inc_intra)
         {
-            // linear model
-            //Sb = exp(-R2b*TE)*exp(-R2bp*abs(tau));
+            // Blood relaxation rate
+            double R2b  = ( 4.5 + (16.4*hct)) + ( ((165.2*hct) + 55.7)*pow(oef,2.0) );
+    
+            // Linear model
+            //double R2bp = (10.2 - ( 1.5*hct)) + ( ((136.9*hct) - 13.9)*pow(oef,2.0) );
+            //Sb = exp(-R2b*te)*exp(-R2bp*abs(tau));
 
-            // powder model
+            // Powder model
 
-            // threshold constant (similar to tc but different?)
+            // Threshold constant (similar to tc but different?)
             double pp = 1.5*dw*tau;
 
-            // signum of tau
+            // Signum of tau
             double st = (tau > 0) - (tau < 0);
 
+            // Complex version of the blood signal for powder model
+            complex<double> Sbc; 
             if (abs(pp) > 1)
             {
                 // large pp
-                Sbc = 0.5*sqrt(M_PI/abs(pp))*exp(i*((pp/3.0)-(st*M_PI/4.0)));
+                Sbc = 0.5*sqrt(M_PI/abs(pp))*exp(I*((pp/3.0)-(st*M_PI/4.0)));
             }
             else
             {
                 // small pp
-                Sbc = 1.0 - ((2.0/45.0)*pow(pp,2.0)) + ((8.0*i*pow(pp,3.0))/2835.0);
+                Sbc = 1.0 - ((2.0/45.0)*pow(pp,2.0)) + ((8.0*I*pow(pp,3.0))/2835.0);
             }
 
             Sb = real(Sbc);
 
             // T2 effect
-            Sb *= exp(-R2b*TE);
-        }
-        else
-        {
-            Sb = 0.0;
+            Sb *= exp(-R2b*te);
         }
 
-        // Calculate CSF signal
+        // Calculate CSF signal if this is included
+        double Se = 0.0;
         if (m_inc_csf)
         {
-            Sec = Ss*exp(-R2e*TE)*exp(-2.0*i*M_PI*dF*abs(tau));
+            // Complex version of the extracellular signal (may be unnecessary)
+            complex<double> Sec = Ss*exp(-r2e*te)*exp(-2.0*I*M_PI*df*abs(tau));
             Se = abs(Sec);
-        }
-        else
-        {
-            Se = 0.0;
         }
 
         // Add up the compartments
-        result(ii) = S0*(((1-CBV-lam0)*St) + (CBV*Sb) + (lam0*Se)); 
+        result(ii) = sig0*(((1-CBV-lam0)*St) + (CBV*Sb) + (lam0*Se)); 
     }
 }
