@@ -5,7 +5,7 @@
 
  Copyright (C) 2019 University of Oxford  */
 
-#include "fwdmodel_qbold_R2p.h"
+#include "fwdmodel_qbold.h"
 
 #include "fabber_core/fwdmodel.h"
 
