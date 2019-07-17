@@ -1,0 +1,4 @@
+depend.mk
+*.o
+*.a
+fabber_qbold
