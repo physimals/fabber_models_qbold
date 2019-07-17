@@ -4,9 +4,7 @@ An implementation of the qBOLD model (based on He & Yablonskiy, 2007, and others
 
 Everything necessary should be in `fwdmodel_qbold.cc`, although there is probably a more elegant, object-oriented method to dealing with the different model options (currently there are just a bunch of boolean inputs that the user can specify when running it). 
 
-To build with an existing FSL installation see the generic fabber build instructions at:
-
-    https://fabber-core.readthedocs.io/en/latest/building.html
+To build with an existing FSL installation see the [generic fabber build instructions](https://fabber-core.readthedocs.io/en/latest/building.html)
 
 # the qBOLD Model
 
