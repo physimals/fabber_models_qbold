@@ -304,7 +304,7 @@ void R2primeFwdModel::HardcodedInitialDists(MVNDist &prior, MVNDist &posterior) 
 
     if (infer_lam)
     {
-        prior.means(lam_index()) = 0.05;
+        prior.means(lam_index()) = 0.1;
         precisions(lam_index(), lam_index()) = prec_CSF; // 1e-1
     }
 
@@ -340,7 +340,7 @@ void R2primeFwdModel::HardcodedInitialDists(MVNDist &prior, MVNDist &posterior) 
 
     if (infer_S0)
     {
-        posterior.means(S0_index()) = 700.0;
+        posterior.means(S0_index()) = 500.0;
         precisions(S0_index(), S0_index()) = 1e-5;
     }
 
