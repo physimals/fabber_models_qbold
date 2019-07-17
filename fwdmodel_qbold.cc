@@ -67,7 +67,7 @@ static OptionSpec OPTIONS[] = {
     { "r2e", OPT_FLOAT, "Default T2 relaxation rate of CSF (s^-1)", OPT_NONREQ, "4.0" },
     { "hct", OPT_FLOAT, "Default haematocrit", OPT_NONREQ, "0.4" },
     { "df", OPT_FLOAT, "Default CSF frequency shift df", OPT_NONREQ, "5.0" },
-    { "lam", OPT_FLOAT, "Default CSF fractional volume (if including CSF component)", OPT_NONREQ, "0.05" },
+    { "lam", OPT_FLOAT, "Default CSF fractional volume (if including CSF component)", OPT_NONREQ, "0.1" },
     { "b0", OPT_FLOAT, "Field strength", OPT_NONREQ, "3.0" },
     { "" },
 };
@@ -102,7 +102,7 @@ void R2primeFwdModel::Initialize(FabberRunData &rundata)
     m_r2e = rundata.GetDoubleDefault("r2e", 4.0);
     m_hct = rundata.GetDoubleDefault("hct", 0.4);
     m_df = rundata.GetDoubleDefault("df", 5.0);
-    m_lam = rundata.GetDoubleDefault("lam", 0.05);
+    m_lam = rundata.GetDoubleDefault("lam", 0.1);
     m_b0 = rundata.GetDoubleDefault("b0", 3.0);
     m_tc_factor = rundata.GetDoubleDefault("tc-factor", 1.5);
     
@@ -263,6 +263,49 @@ void R2primeFwdModel::Evaluate(const ColumnVector &params, ColumnVector &result)
     double lam = m_lam;
 
     // Assign values to parameters which are being inferred
+    if (m_infer_r2t)
+    {
+        r2t = (params(r2t_index()));
+    }
+
+    if (m_infer_sig0)
+    {
+        sig0 = (params(sig0_index()));
+    }
+
+    if (m_infer_hct)
+    {
+        hct = (params(hct_index()));
+    }
+
+    if (m_infer_r2e)
+    {
+        r2e = (params(r2e_index()));
+    }
+
+    if (m_infer_df)
+    {
+        df = (params(df_index()));
+    }
+
+    if (m_infer_lam)
+    {
+        lam = (params(lam_index()));
+    }
+
+    if (m_infer_dbv)
+    {
+        dbv = (params(dbv_index()));
+        // this bit makes sure the value for dbv isn't ridiculous
+        if (dbv < 0.0001)
+        {
+            dbv = 0.0001;
+        }
+        else if (dbv > 0.5)
+        {
+            dbv = 0.5;
+        }
+    }
 
     // OEF and R2p are equivalent ways to describe the effect of
     // oxygen extraction on the T2 relaxation rate.
@@ -295,50 +338,6 @@ void R2primeFwdModel::Evaluate(const ColumnVector &params, ColumnVector &result)
 
         dw = r2p / dbv;
         oef = dw / oef_dw_factor;
-    }
-
-    if (m_infer_dbv)
-    {
-        dbv = (params(dbv_index()));
-        // this bit makes sure the value for dbv isn't ridiculous
-        if (dbv < 0.0001)
-        {
-            dbv = 0.0001;
-        }
-        else if (dbv > 0.5)
-        {
-            dbv = 0.5;
-        }
-    }
-    
-    if (m_infer_r2t)
-    {
-        r2t = (params(r2t_index()));
-    }
-    
-    if (m_infer_sig0)
-    {
-        sig0 = (params(sig0_index()));
-    }
-    
-    if (m_infer_hct)
-    {
-        hct = (params(hct_index()));
-    }
-    
-    if (m_infer_r2e)
-    {
-        r2e = (params(r2e_index()));
-    }
-    
-    if (m_infer_df)
-    {
-        df = (params(df_index()));
-    }
-    
-    if (m_infer_lam)
-    {
-        lam = (params(lam_index()));
     }
 
     // Characteristic time. Note that He and Yablonskiy 2007 define tc = 1/dw and
