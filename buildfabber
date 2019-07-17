@@ -1,4 +1,0 @@
-#!/bin/bash
-
-fabber_models_qbold/scripts/build.sh release
-cp fabber_models_qbold/build_release/fabber_qbold ./fqbold 
