@@ -43,7 +43,7 @@ string R2primeFwdModel::GetDescription() const
 }
 
 static OptionSpec OPTIONS[] = {
-    { "tau<n>", OPT_FLOAT, "", OPT_REQ, "" },
+    { "tau<n>", OPT_FLOAT, "Tau values (s)", OPT_REQ, "" },
     { "te", OPT_FLOAT, "Single TE value", OPT_NONREQ, "" },
     { "te<n>", OPT_FLOAT, "Sequence of TE values, alternative to --te", OPT_NONREQ, "" },
     { "tr", OPT_FLOAT, "TR value", OPT_REQ, "3.0" },
@@ -59,8 +59,8 @@ static OptionSpec OPTIONS[] = {
     { "inferlam", OPT_BOOL, "Infer CSF fractional volume", OPT_NONREQ, "" },
     { "incintra", OPT_BOOL, "Include intravascular signal", OPT_NONREQ, "" },
     { "inccsf", OPT_BOOL, "Include CSF signal", OPT_NONREQ, "" },
-    { "ignore-t1", OPT_BOOL, "", OPT_NONREQ, "" },
-    { "motion-narrowing", OPT_BOOL, "", OPT_NONREQ, "" },
+    { "ignore-t1", OPT_BOOL, "Ignore T1", OPT_NONREQ, "" },
+    { "motion-narrowing", OPT_BOOL, "Use motional narrowing model for intravascular signal", OPT_NONREQ, "" },
     { "dbv", OPT_FLOAT, "Default deoxygenated blood volume fraction", OPT_NONREQ, "0.03" },
     { "r2t", OPT_FLOAT, "Default T2 relaxation rate of tissue (s^-1)", OPT_NONREQ, "11.5" },
     { "sig0", OPT_FLOAT, "Default signal offset", OPT_NONREQ, "500" },
@@ -230,11 +230,11 @@ void R2primeFwdModel::GetParameterDefaults(std::vector<Parameter> &params) const
     params.clear();
 
     int p=0;
+    if (m_infer_sig0) params.push_back(Parameter(p++, "sig0", DistParams(m_sig0, 1e6), DistParams(m_sig0, 100), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
     if (m_infer_oef) params.push_back(Parameter(p++, "oef", DistParams(0.4, 10), DistParams(0.4, 10), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
     if (m_infer_r2p) params.push_back(Parameter(p++, "r2p", DistParams(4.0, 1e3), DistParams(4.0, 1e2), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
     if (m_infer_dbv) params.push_back(Parameter(p++, "dbv", DistParams(m_dbv, 10), DistParams(m_dbv, 10), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
     if (m_infer_r2t) params.push_back(Parameter(p++, "r2t", DistParams(m_r2t, 1e2), DistParams(m_r2t, 1e2), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
-    if (m_infer_sig0) params.push_back(Parameter(p++, "sig0", DistParams(m_sig0, 1e6), DistParams(m_sig0, 100), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
     if (m_infer_hct) params.push_back(Parameter(p++, "hct", DistParams(m_hct, 1e-3), DistParams(m_hct, 1e-3), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
     if (m_infer_r2e) params.push_back(Parameter(p++, "r2e", DistParams(m_r2e, 1e2), DistParams(m_r2e, 1e2), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
     if (m_infer_df) params.push_back(Parameter(p++, "df", DistParams(m_df, 1e4), DistParams(m_df, 100), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
