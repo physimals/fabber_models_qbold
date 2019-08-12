@@ -14,7 +14,8 @@
 #include <string>
 #include <vector>
 
-class R2primeFwdModel : public FwdModel {
+class R2primeFwdModel : public FwdModel 
+{
 public:
     static FwdModel* NewInstance();
 
@@ -23,62 +24,14 @@ public:
     std::string GetDescription() const;
     void Initialize(ArgsType &args);
     void GetParameterDefaults(std::vector<Parameter> &params) const;
-    
     void Evaluate(const NEWMAT::ColumnVector &params, NEWMAT::ColumnVector &result) const;
 
 protected:
-
     // Scan Parameters
     double m_tr;
     double m_ti;
     NEWMAT::ColumnVector m_taus;
     NEWMAT::ColumnVector m_tes;
-
-    // Lookup starting indices of parameters
-    int oef_index() const
-    {
-        return (m_infer_oef ? 1 : 0);
-    }
-    
-    int r2p_index() const
-    {
-        return oef_index() + (m_infer_r2p ? 1 : 0);
-    }
-
-    int dbv_index() const
-    {
-        return r2p_index() + (m_infer_dbv ? 1 : 0);
-    }
-
-    int r2t_index() const
-    {
-        return dbv_index() + (m_infer_r2t ? 1 : 0);
-    }
-
-    int sig0_index() const
-    {
-        return r2t_index() + (m_infer_sig0 ? 1 : 0);
-    }
-
-    int hct_index() const
-    {
-        return sig0_index() + (m_infer_hct ? 1 : 0);
-    }
-
-    int r2e_index() const
-    {
-        return hct_index() + (m_infer_r2e ? 1 : 0);
-    }
-
-    int df_index() const
-    {
-        return r2e_index() + (m_infer_df ? 1 : 0);
-    }
-
-    int lam_index() const
-    {
-        return df_index() + (m_infer_lam ? 1 : 0);
-    }
 
     // Default parameter values
     double m_dbv;

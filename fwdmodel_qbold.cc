@@ -249,54 +249,34 @@ void R2primeFwdModel::GetParameterDefaults(std::vector<Parameter> &params) const
  */
 void R2primeFwdModel::Evaluate(const ColumnVector &params, ColumnVector &result) const
 {
-    // Check we have been given the right number of parameters
-    assert(params.Nrows() == NumParams());
     result.ReSize(data.Nrows());
 
     // Default values for parameters - values are overridden if the parameter is inferred
+    double sig0 = m_sig0;
+    double oef = 0;         // If not inferred, derived from R2P
+    double r2p = 0;         // If not inferred, derived from OEF
     double dbv = m_dbv;
     double r2t = m_r2t;
-    double sig0 = m_sig0;
     double hct = m_hct;
     double r2e = m_r2e;
     double df = m_df;
     double lam = m_lam;
 
     // Assign values to parameters which are being inferred
-    if (m_infer_r2t)
-    {
-        r2t = (params(r2t_index()));
-    }
-
-    if (m_infer_sig0)
-    {
-        sig0 = (params(sig0_index()));
-    }
-
-    if (m_infer_hct)
-    {
-        hct = (params(hct_index()));
-    }
-
-    if (m_infer_r2e)
-    {
-        r2e = (params(r2e_index()));
-    }
-
-    if (m_infer_df)
-    {
-        df = (params(df_index()));
-    }
-
-    if (m_infer_lam)
-    {
-        lam = (params(lam_index()));
-    }
+    int p = 1;
+    if (m_infer_sig0) sig0 = params(p++);
+    if (m_infer_oef) oef = params(p++);
+    if (m_infer_r2p) r2p = params(p++);
+    if (m_infer_dbv) dbv = params(p++);
+    if (m_infer_r2t) r2t = params(p++);
+    if (m_infer_hct) hct = params(p++);
+    if (m_infer_r2e) r2e = params(p++);
+    if (m_infer_df) df = params(p++);
+    if (m_infer_lam) lam = params(p++);
 
     if (m_infer_dbv)
     {
-        dbv = (params(dbv_index()));
-        // this bit makes sure the value for dbv isn't ridiculous
+        // This bit makes sure the value for dbv isn't ridiculous
         if (dbv < 0.0001)
         {
             dbv = 0.0001;
@@ -315,8 +295,6 @@ void R2primeFwdModel::Evaluate(const ColumnVector &params, ColumnVector &result)
     // dw = gamma * 4/3 * pi * delta_chi0 * hct * oef * B0
     // r2p = dbv * dw
 
-    double oef;         // If not inferred, derived from R2P
-    double r2p;         // If not inferred, derived from OEF
     double dw;          // 1/tc in He and Yablonskiy 2007
     
     // Conversion factor from OEF to dw
@@ -324,13 +302,11 @@ void R2primeFwdModel::Evaluate(const ColumnVector &params, ColumnVector &result)
 
     if (m_infer_oef)
     {
-        oef = (params(oef_index()));
         dw = oef_dw_factor*oef;
         r2p = dw*dbv;
     }
     else
     {
-        r2p = (params(r2p_index()));
         if (r2p < 0.01)
         {
             r2p = 0.01;
