@@ -17,7 +17,7 @@ else
   NIFTILIB = -lNewNifti
 endif
 
-LIBS = -lutils -lnewimage -lmiscmaths ${MATLIB} ${NIFTILIB} -lznz -lz -ldl
+LIBS = -lnewimage -lmiscmaths -lutils ${MATLIB} ${NIFTILIB} -lznz -lz -ldl
 
 XFILES = fabber_qbold
 
