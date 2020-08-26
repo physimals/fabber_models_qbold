@@ -3,7 +3,7 @@
  *
  * Matthew Cherukara, IBME
  *
- * Copyright (C) 2019 University of Oxford  
+ * Copyright (C) 2019 University of Oxford
  */
 #pragma once
 
@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 
-class R2primeFwdModel : public FwdModel 
+class R2primeFwdModel : public FwdModel
 {
 public:
     static FwdModel* NewInstance();
