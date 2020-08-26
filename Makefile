@@ -1,28 +1,14 @@
 include ${FSLCONFDIR}/default.mk
 
 PROJNAME = fabber_qbold
-
-USRINCFLAGS = -I${INC_NEWMAT} -I{INC_CPROB} -I${INC_PROB} -I${INC_BOOST} 
-USRLDFLAGS = -L${LIB_NEWMAT} -L${LIB_PROB} -L../fabber_core
-
-FSLVERSION= $(shell cat ${FSLDIR}/etc/fslversion | head -c 1)
-ifeq ($(FSLVERSION), 5) 
-  NIFTILIB = -lfslio -lniftiio 
-  MATLIB = -lnewmat
-else 
-  UNAME := $(shell uname -s)
-  ifeq ($(UNAME), Linux)
-    MATLIB = -lopenblas
-  endif
-  NIFTILIB = -lNewNifti
-endif
-
-LIBS = -lnewimage -lmiscmaths -lutils ${MATLIB} ${NIFTILIB} -lznz -lz -ldl
-
+LIBS = -lfsl-fabber_models_qbold -lfsl-fabberexec -lfsl-fabbercore \
+       -lfsl-newimage -lfsl-miscmaths -lfsl-utils -lfsl-NewNifti \
+       -lfsl-cprob -lfsl-znz -ldl
 XFILES = fabber_qbold
+SOFILES = libfsl-fabber_models_qbold.so
 
 # Forward models
-OBJS =  fwdmodel_qbold.o 
+OBJS =  fwdmodel_qbold.o
 
 # For debugging:
 #OPTFLAGS = -ggdb
@@ -35,17 +21,14 @@ CXXFLAGS += -DGIT_SHA1=\"${GIT_SHA1}\" -DGIT_DATE="\"${GIT_DATE}\""
 #
 # Build
 #
-all:	${XFILES} libfabber_models_qbold.a
-
-clean:
-	${RM} -f *.o *.a depend.mk fabber_qbold
+all: ${XFILES} ${SOFILES}
 
 # models in a library
-libfabber_models_qbold.a : ${OBJS} 
-	${AR} -r $@ ${OBJS}
+libfsl-fabber_models_qbold.so : ${OBJS}
+	${CXX} ${CXXFLAGS} -shared -o $@ $^
 
 # fabber built from the FSL fabbercore library including the models specifieid in this project
-fabber_qbold : fabber_main.o ${OBJS} 
-	${CXX} ${CXXFLAGS} ${LDFLAGS} -o $@ $< ${OBJS} -lfabbercore -lfabberexec ${LIBS}
+fabber_qbold : fabber_main.o libfsl-fabber_models_qbold.so
+	${CXX} ${CXXFLAGS} -o $@ $< ${LDFLAGS}
 
 # DO NOT DELETE
