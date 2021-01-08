@@ -1,8 +1,8 @@
 include ${FSLCONFDIR}/default.mk
 
 PROJNAME = fabber_qbold
-LIBS = -lfsl-fabber_models_qbold -lfsl-fabberexec -lfsl-fabbercore \
-       -lfsl-newimage -lfsl-miscmaths -lfsl-utils -lfsl-NewNifti \
+LIBS = -lfsl-fabberexec -lfsl-fabbercore -lfsl-newimage \
+       -lfsl-miscmaths -lfsl-utils -lfsl-NewNifti \
        -lfsl-cprob -lfsl-znz -ldl
 XFILES = fabber_qbold
 SOFILES = libfsl-fabber_models_qbold.so
@@ -25,10 +25,8 @@ all: ${XFILES} ${SOFILES}
 
 # models in a library
 libfsl-fabber_models_qbold.so : ${OBJS}
-	${CXX} ${CXXFLAGS} -shared -o $@ $^
+	${CXX} ${CXXFLAGS} -shared -o $@ $^ ${LDFLAGS}
 
 # fabber built from the FSL fabbercore library including the models specifieid in this project
 fabber_qbold : fabber_main.o libfsl-fabber_models_qbold.so
-	${CXX} ${CXXFLAGS} -o $@ $< ${LDFLAGS}
-
-# DO NOT DELETE
+	${CXX} ${CXXFLAGS} -o $@ $< -lfsl-fabber_models_qbold ${LDFLAGS}
