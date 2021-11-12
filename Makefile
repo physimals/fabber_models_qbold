@@ -28,5 +28,5 @@ libfsl-fabber_models_qbold.so : ${OBJS}
 	${CXX} ${CXXFLAGS} -shared -o $@ $^ ${LDFLAGS}
 
 # fabber built from the FSL fabbercore library including the models specifieid in this project
-fabber_qbold : fabber_main.o libfsl-fabber_models_qbold.so
+fabber_qbold : fabber_main.o | libfsl-fabber_models_qbold.so
 	${CXX} ${CXXFLAGS} -o $@ $< -lfsl-fabber_models_qbold ${LDFLAGS}
