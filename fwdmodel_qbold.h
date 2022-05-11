@@ -3,18 +3,18 @@
  *
  * Matthew Cherukara, IBME
  *
- * Copyright (C) 2019 University of Oxford  
+ * Copyright (C) 2019 University of Oxford
  */
 #pragma once
 
 #include <fabber_core/fwdmodel.h>
 
-#include <newmat.h>
+#include "armawrap/newmat.h"
 
 #include <string>
 #include <vector>
 
-class R2primeFwdModel : public FwdModel 
+class R2primeFwdModel : public FwdModel
 {
 public:
     static FwdModel* NewInstance();

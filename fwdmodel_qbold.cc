@@ -3,7 +3,7 @@
  *
  * Matthew Cherukara, IBME
  *
- * Copyright (C) 2019 University of Oxford  
+ * Copyright (C) 2019 University of Oxford
  */
 
 #include "fwdmodel_qbold.h"
@@ -11,7 +11,7 @@
 #include <fabber_core/fwdmodel.h>
 #include <fabber_core/priors.h>
 
-#include <newmat.h>
+#include "armawrap/newmat.h"
 
 #include <vector>
 #include <string>
@@ -37,7 +37,7 @@ FwdModel *R2primeFwdModel::NewInstance() // unchanged
     return new R2primeFwdModel();
 }
 
-string R2primeFwdModel::GetDescription() const 
+string R2primeFwdModel::GetDescription() const
 {
     return "ASE qBOLD model R2-prime version";
 }
@@ -105,7 +105,7 @@ void R2primeFwdModel::Initialize(FabberRunData &rundata)
     m_lam = rundata.GetDoubleDefault("lam", 0.1);
     m_b0 = rundata.GetDoubleDefault("b0", 3.0);
     m_tc_factor = rundata.GetDoubleDefault("tc-factor", 1.5);
-    
+
     // Inference flags
     m_infer_oef = rundata.GetBool("inferoef");
     m_infer_r2p = rundata.GetBool("inferr2p");
@@ -117,7 +117,7 @@ void R2primeFwdModel::Initialize(FabberRunData &rundata)
     m_infer_df  = rundata.GetBool("inferdf");
     m_infer_lam = rundata.GetBool("inferlam");
 
-    if (m_infer_oef && m_infer_r2p) 
+    if (m_infer_oef && m_infer_r2p)
     {
         throw FabberRunDataError("Can't infer both OEF and R2p");
     }
@@ -149,7 +149,7 @@ void R2primeFwdModel::Initialize(FabberRunData &rundata)
     // Then read TE values. There might be a sequence or just one
     vector<double> tes = rundata.GetDoubleList("te");
     m_tes.ReSize(tausv.size());
-    if (tes.size() == 1) 
+    if (tes.size() == 1)
     {
         m_tes = tes[0];
     }
@@ -243,9 +243,9 @@ void R2primeFwdModel::GetParameterDefaults(std::vector<Parameter> &params) const
 
 /**
  * Evaluate the quantitative BOLD model
- * 
+ *
  * Seems to largely follow He and Yablonskiy 2007: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3971521/
- * 
+ *
  */
 void R2primeFwdModel::Evaluate(const ColumnVector &params, ColumnVector &result) const
 {
@@ -296,7 +296,7 @@ void R2primeFwdModel::Evaluate(const ColumnVector &params, ColumnVector &result)
     // r2p = dbv * dw
 
     double dw;          // 1/tc in He and Yablonskiy 2007
-    
+
     // Conversion factor from OEF to dw
     double oef_dw_factor = GAMMA * 4/3 * M_PI * D_CHI0 * hct * m_b0;
 
@@ -318,7 +318,7 @@ void R2primeFwdModel::Evaluate(const ColumnVector &params, ColumnVector &result)
 
     // Characteristic time. Note that He and Yablonskiy 2007 define tc = 1/dw and
     // use regimes separated by 1.5tc - hence we default to a TC factor of 1.5.
-    // Matt Cherukara has work demonstrating that 1.76tc is better, when this is 
+    // Matt Cherukara has work demonstrating that 1.76tc is better, when this is
     // published we will probably move the default factor to 1.76
     double tc = m_tc_factor/dw;
 
@@ -365,7 +365,7 @@ void R2primeFwdModel::Evaluate(const ColumnVector &params, ColumnVector &result)
         // Intravascular (Eq 17)
         CBV = nb*mb*(1-lam0)*dbv;
     }
-    
+
     // loop through taus
     result.ReSize(m_taus.Nrows());
     for (int ii = 1; ii <= m_taus.Nrows(); ii++)
@@ -402,21 +402,21 @@ void R2primeFwdModel::Evaluate(const ColumnVector &params, ColumnVector &result)
             double dChi = ((0.27*oef) + 0.14)*1e-6;
             double G0   = (4/45)*hct*(1-hct)*pow((dChi*m_b0),2.0);
             double kk   = 0.5*pow(gm,2.0)*G0*pow(td,2.0);
-            double R2b = 5.291;    // fixed value (Berman, 2017) 
+            double R2b = 5.291;    // fixed value (Berman, 2017)
 
             // motion narrowing model
-            Sb = exp(-kk* ( (te/td) + pow((0.25 + (te/td)),0.5) + 1.5 - 
-                            (2*pow((0.25 + (pow((te+tau),2.0)/td) ),0.5)) - 
+            Sb = exp(-kk* ( (te/td) + pow((0.25 + (te/td)),0.5) + 1.5 -
+                            (2*pow((0.25 + (pow((te+tau),2.0)/td) ),0.5)) -
                             (2*pow((0.25 + (pow((te-tau),2.0)/td) ),0.5)) ) );
 
-            // T2 effect 
-            Sb *= exp(-R2b*te); 
+            // T2 effect
+            Sb *= exp(-R2b*te);
         }
         else if (m_inc_intra)
         {
             // Blood relaxation rate
             double R2b  = ( 4.5 + (16.4*hct)) + ( ((165.2*hct) + 55.7)*pow(oef,2.0) );
-    
+
             // Linear model
             //double R2bp = (10.2 - ( 1.5*hct)) + ( ((136.9*hct) - 13.9)*pow(oef,2.0) );
             //Sb = exp(-R2b*te)*exp(-R2bp*abs(tau));
@@ -430,7 +430,7 @@ void R2primeFwdModel::Evaluate(const ColumnVector &params, ColumnVector &result)
             double st = (tau > 0) - (tau < 0);
 
             // Complex version of the blood signal for powder model
-            complex<double> Sbc; 
+            complex<double> Sbc;
             if (abs(pp) > 1)
             {
                 // large pp
@@ -458,6 +458,6 @@ void R2primeFwdModel::Evaluate(const ColumnVector &params, ColumnVector &result)
         }
 
         // Add up the compartments
-        result(ii) = sig0*(((1-CBV-lam0)*St) + (CBV*Sb) + (lam0*Se)); 
+        result(ii) = sig0*(((1-CBV-lam0)*St) + (CBV*Sb) + (lam0*Se));
     }
 }
