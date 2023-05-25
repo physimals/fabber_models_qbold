@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the method as follows:"
+authors:
+- family-names: "Cherukara"
+  given-names: "Matthew T."
+- family-names: "Stone"
+  given-names: "Alan J."
+- family-names: "Chappell"
+  given-names: "Michael A."
+- family-names: "Blockley"
+  given-names: "Nicholas P."
+title: "Model-based Bayesian inference of brain oxygenation using quantitative BOLD"
+doi: 10.1016/j.neuroimage.2019.116106
+date-released: 2019
+url: "https://doi.org/10.1016/j.neuroimage.2019.116106"
