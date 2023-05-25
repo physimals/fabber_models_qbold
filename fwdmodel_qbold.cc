@@ -96,7 +96,7 @@ void R2primeFwdModel::Initialize(FabberRunData &rundata)
 {
     // Default parameter values. These are used as the prior mean
     // when inferring the parameter, or as the fixed value if not
-    m_dbv = rundata.GetDoubleDefault("dbv", 0.03);
+    m_dbv = rundata.GetDoubleDefault("dbv", 0.036);
     m_r2t = rundata.GetDoubleDefault("r2t", 11.5);
     m_sig0 = rundata.GetDoubleDefault("sig0", 500);
     m_r2e = rundata.GetDoubleDefault("r2e", 4.0);
@@ -232,7 +232,7 @@ void R2primeFwdModel::GetParameterDefaults(std::vector<Parameter> &params) const
     int p=0;
     if (m_infer_sig0) params.push_back(Parameter(p++, "sig0", DistParams(m_sig0, 1e6), DistParams(m_sig0, 100), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
     if (m_infer_oef) params.push_back(Parameter(p++, "oef", DistParams(0.4, 10), DistParams(0.4, 10), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
-    if (m_infer_r2p) params.push_back(Parameter(p++, "r2p", DistParams(4.0, 1e3), DistParams(4.0, 1e2), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
+    if (m_infer_r2p) params.push_back(Parameter(p++, "r2p", DistParams(2.6, 1e3), DistParams(2.6, 1e2), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
     if (m_infer_dbv) params.push_back(Parameter(p++, "dbv", DistParams(m_dbv, 10), DistParams(m_dbv, 10), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
     if (m_infer_r2t) params.push_back(Parameter(p++, "r2t", DistParams(m_r2t, 1e2), DistParams(m_r2t, 1e2), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
     if (m_infer_hct) params.push_back(Parameter(p++, "hct", DistParams(m_hct, 1e-3), DistParams(m_hct, 1e-3), PRIOR_NORMAL, TRANSFORM_IDENTITY()));
