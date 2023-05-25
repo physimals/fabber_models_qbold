@@ -8,7 +8,11 @@
 
 #include "fabber_core/fabber_core.h"
 
+#include "fwdmodel_qbold.h"
+
 int main(int argc, char **argv)
 {
+    // Add the Qbold models - these will autoregister at this point
+    R2primeFwdModel::NewInstance();
     return execute(argc, argv);
 }

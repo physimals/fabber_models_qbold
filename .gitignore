@@ -1,4 +1,5 @@
 depend.mk
+*.so
 *.o
 *.a
 fabber_qbold
